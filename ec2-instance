@@ -1,0 +1,10 @@
+provider "aws" {
+    access_key = "************************************"
+    secret_key = "###################1MI7*****************"
+    region     = "ap-south-1" 
+}
+
+resource "aws_instance" "test" {
+    ami = "ami-0cb892447fb9d327e"
+    instance_type = "t2.micro" 
+}
