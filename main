@@ -1,50 +1,69 @@
-variable "name" {
-  default     = "Default"
-  type        = string
-  description = "Name of the VPC"
+provider "aws" {
+    region = "us-east-1"
+    access_key = "AKIAUHRD2NQYQBURBM46"
+    secret_key = "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"
+}
+resource "aws_vpc" "default" {
+  cidr_block           = var.cidr_block
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
 }
 
-# variable "project" {
-#   type        = string
-#   description = "Name of project this VPC is meant to house"
+resource "aws_internet_gateway" "default" {
+  vpc_id = aws_vpc.default.id
+
+}
+
+resource "aws_route_table" "private" {
+  count = length(var.private_subnet_cidr_blocks)
+  vpc_id = aws_vpc.default.id
+}
+
+# resource "aws_route" "private" {
+#   count = length(var.private_subnet_cidr_blocks)
+#   route_table_id         = aws_route_table.private[count.index].id
+#   destination_cidr_block = "0.0.0.0/0"
+#   nat_gateway_id         = aws_nat_gateway.default[count.index].id
 # }
 
-# variable "environment" {
-#   type        = string
-#   description = "Name of environment this VPC is targeting"
-# }
-
-variable "region" {
-  default     = "us-east-1"
-  type        = string
-  description = "Region of the VPC"
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.default.id
 }
 
-# variable "key_name" {
-#   type        = string
-#   description = "EC2 Key pair name for the bastion"
-# }
-
-variable "cidr_block" {
-  default     = "10.0.0.0/16"
-  type        = string
-  description = "CIDR block for the VPC"
+resource "aws_route" "public" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.default.id
 }
 
-variable "public_subnet_cidr_blocks" {
-  default     = ["10.0.0.0/24", "10.0.2.0/24"]
-  type        = list
-  description = "List of public subnet CIDR blocks"
+resource "aws_subnet" "private" {
+  count = length(var.private_subnet_cidr_blocks)
+
+  vpc_id            = aws_vpc.default.id
+  cidr_block        = var.private_subnet_cidr_blocks[count.index]
+  availability_zone = var.availability_zones[count.index]
 }
 
-variable "private_subnet_cidr_blocks" {
-  default     = ["10.0.1.0/24", "10.0.3.0/24"]
-  type        = list
-  description = "List of private subnet CIDR blocks"
+resource "aws_subnet" "public" {
+  count = length(var.public_subnet_cidr_blocks)
+
+  vpc_id                  = aws_vpc.default.id
+  cidr_block              = var.public_subnet_cidr_blocks[count.index]
+  availability_zone       = var.availability_zones[count.index]
+  map_public_ip_on_launch = true
 }
 
-variable "availability_zones" {
-  default     = ["us-east-1a", "us-east-1b"]
-  type        = list
-  description = "List of availability zones"
+resource "aws_route_table_association" "private" {
+  count = length(var.private_subnet_cidr_blocks)
+
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[count.index].id
+}
+
+resource "aws_route_table_association" "public" {
+  count = length(var.public_subnet_cidr_blocks)
+
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
 }
